@@ -34,6 +34,8 @@
 #include <libavutil/timestamp.h>
 #include <libavformat/avformat.h>
 
+#include <inttypes.h>
+
 #pragma comment(lib,"avcodec.lib")
 #pragma comment(lib,"avdevice.lib")
 #pragma comment(lib,"avfilter.lib")
@@ -225,7 +227,7 @@ static int get_format_from_sample_fmt(const char **fmt,
     return -1;
 }
 
-int main (int argc, char **argv)
+int main_src (int argc, char **argv)
 {
     int ret = 0, got_frame;
 
@@ -389,4 +391,125 @@ end:
     av_free(video_dst_data[0]);
 
     return ret < 0;
+}
+
+// 获取 rtsp流数据 并且保存为二进制文件，
+// 需要两个线程， 各自保存各自的数据，怎么控制程序结束呢？getchar?
+int main(int argc, char **argv) {
+
+	// 先写一个函数的，后面作为线程函数来工作!
+	av_register_all();
+	avformat_network_init();                                                    // Initialization of network components
+
+	AVFormatContext* ifmt_ctx = avformat_alloc_context();
+
+	AVDictionary* options = NULL;
+	int cc = 0;
+	cc = av_dict_set(&options, "buffer_size", "8294400", 0); //设置缓存大小，1080p可将值调大
+	if (cc < 0) { printf("av_dict_set buffer_size failed\n"); }
+
+	cc = av_dict_set(&options, "rtsp_transport", "tcp", 0); //以udp方式打开，如果以tcp方式打开将udp替换为tcp
+	if (cc < 0) { printf("av_dict_set rtsp_transport failed\n"); }
+
+	cc = av_dict_set(&options, "stimeout", "2000000", 0); //设置超时断开连接时间，单位微秒
+	if (cc < 0) { printf("av_dict_set stimeout failed\n"); }
+
+	cc = av_dict_set(&options, "max_delay", "500000", 0); //设置最大时延 
+	if (cc < 0) { printf("av_dict_set max_delay failed\n"); }
+
+	int ret = -1;
+	char errbuf[64];
+	char *mRtsp = "rtsp://admin:bst12345678@192.168.2.188:554/cam/realmonitor?channel=1&subtype=0";
+	if ((ret = avformat_open_input(&ifmt_ctx, mRtsp, 0, 0)) < 0) {
+		printf("Could not open input file '%s' (error '%s')\n", mRtsp, av_make_error_string(errbuf, sizeof(errbuf), ret));
+		goto FREE2;
+	}
+	printf("open stream success\n");
+
+	AVCodecContext  *pCodecCtx = NULL;
+
+	if (options != NULL) {
+		av_dict_free(&options);
+	}
+
+	printf("before avformat_find_stream_info\n");
+	if ((ret = avformat_find_stream_info(ifmt_ctx, NULL)) < 0) {
+		printf("Could not open find stream info (error '%s')\n", av_make_error_string(errbuf, sizeof(errbuf), ret));
+		goto FREE2;
+	}
+
+	for (int i = 0; i < ifmt_ctx->nb_streams; i++) {
+		av_dump_format(ifmt_ctx, i, mRtsp, 0);
+	}
+
+	unsigned int    i;
+	AVStream        *st = NULL;
+	int             video_st_index = -1;
+	int             audio_st_index = -1;
+	for (i = 0; i < ifmt_ctx->nb_streams; i++) {
+		st = ifmt_ctx->streams[i];
+		switch (st->codec->codec_type) {
+		case AVMEDIA_TYPE_AUDIO: audio_st_index = i; break;
+		case AVMEDIA_TYPE_VIDEO: video_st_index = i; break;
+		default: break;
+		}
+	}
+	if (-1 == video_st_index) {
+		printf("No H.264 video stream in the input file\n");
+		goto FREE2;
+	}
+
+	pCodecCtx = ifmt_ctx->streams[video_st_index]->codec;
+	if (pCodecCtx == NULL) {
+		printf("get pCodecCtx failed\n");
+		goto FREE2;
+	}
+	AVCodec         *pCodec;
+	pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
+	// pCodec = avcodec_find_decoder(AV_CODEC_ID_H264);
+	if (pCodec == NULL)
+	{
+		printf("Codec not found.\n");
+		goto  FREE1;
+	}
+
+	if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0)
+	{
+		printf("Could not open codec.\n");
+		goto  FREE1;
+	}
+
+	AVPacket pkt;
+	av_init_packet(&pkt);
+
+	double timebase = av_q2d(ifmt_ctx->streams[video_st_index]->time_base);
+	//printf("start time %" PRId64 "\n", ifmt_ctx->start_time_realtime);
+	printf("start time %llu \n", ifmt_ctx->start_time_realtime);
+	int frameNo = 0;
+
+	FILE * fd = fopen("ff_test.264", "wb");
+
+	while (1) {
+		int ret = av_read_frame(ifmt_ctx, &pkt);
+		printf("get a frame %d\n", frameNo);
+		printf("packet size %d \n", pkt.size);
+
+		fwrite(pkt.data, 1, pkt.size, fd);
+		frameNo++;
+		av_free_packet(&pkt);
+
+		if (frameNo >= 200) {
+			fclose(fd);
+			break;
+		}
+	}
+
+FREE1:
+	avcodec_close(pCodecCtx);
+	av_free(pCodecCtx);
+FREE2:
+	avformat_free_context(ifmt_ctx);
+	avformat_network_deinit();
+
+	return 0;
 }
