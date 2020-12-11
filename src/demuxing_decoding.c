@@ -485,9 +485,19 @@ int main(int argc, char **argv) {
 	double timebase = av_q2d(ifmt_ctx->streams[video_st_index]->time_base);
 	//printf("start time %" PRId64 "\n", ifmt_ctx->start_time_realtime);
 	printf("start time %llu \n", ifmt_ctx->start_time_realtime);
+
+	char buf[64] = { 0 };
+	sprintf(buf, "%llu", ifmt_ctx->start_time_realtime);
+	printf("string %s \n", buf);
+	int len = strlen(buf);
+	buf[len] = '.';
+	buf[len + 1] = '2';
+	buf[len + 2] = '6';
+	buf[len + 3] = '4';
+
 	int frameNo = 0;
 
-	FILE * fd = fopen("ff_test.264", "wb");
+	FILE * fd = fopen(buf, "wb");
 
 	while (1) {
 		int ret = av_read_frame(ifmt_ctx, &pkt);
