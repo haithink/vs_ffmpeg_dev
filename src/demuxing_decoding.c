@@ -29,6 +29,7 @@
  * @example demuxing_decoding.c
  */
 
+
 #include <libavutil/imgutils.h>
 #include <libavutil/samplefmt.h>
 #include <libavutil/timestamp.h>
@@ -393,9 +394,10 @@ end:
     return ret < 0;
 }
 
+
 // 获取 rtsp流数据 并且保存为二进制文件，
 // 需要两个线程， 各自保存各自的数据，怎么控制程序结束呢？getchar?
-int main(int argc, char **argv) {
+int func(char *mRtsp) {
 
 	// 先写一个函数的，后面作为线程函数来工作!
 	av_register_all();
@@ -419,7 +421,9 @@ int main(int argc, char **argv) {
 
 	int ret = -1;
 	char errbuf[64];
-	char *mRtsp = "rtsp://admin:bst12345678@192.168.2.188:554/cam/realmonitor?channel=1&subtype=0";
+	
+	//char *mRtsp = "rtsp://admin:bst12345678@192.168.2.188:554/cam/realmonitor?channel=1&subtype=0";
+
 	if ((ret = avformat_open_input(&ifmt_ctx, mRtsp, 0, 0)) < 0) {
 		printf("Could not open input file '%s' (error '%s')\n", mRtsp, av_make_error_string(errbuf, sizeof(errbuf), ret));
 		goto FREE2;
@@ -523,3 +527,4 @@ FREE2:
 
 	return 0;
 }
+

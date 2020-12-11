@@ -18,5 +18,8 @@
     <ClCompile Include="..\..\..\src\demuxing_decoding.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="startUp.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
