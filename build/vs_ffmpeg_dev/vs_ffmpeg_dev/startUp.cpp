@@ -84,7 +84,7 @@ int main() {
 	std::thread t1(func, mRtsp);
 
 	char *mRtsp2 = rtsp2;// "rtsp://admin:bst12345678@192.168.2.188:554/cam/realmonitor?channel=1&subtype=0";
-	std::thread t2(func, mRtsp);
+	std::thread t2(func, mRtsp2);
 
 	t1.join();
 	t2.join();

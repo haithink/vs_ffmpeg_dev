@@ -36,7 +36,7 @@
 #include <libavformat/avformat.h>
 
 #include <inttypes.h>
-
+#include <string.h>
 
 #pragma comment(lib,"avcodec.lib")
 #pragma comment(lib,"avdevice.lib")
@@ -395,7 +395,17 @@ end:
     return ret < 0;
 }
 
-
+char * getIp(char * rtsp) {
+	int len = strlen(rtsp);
+	int i = 0;
+	while (i < len) {
+		if (rtsp[i] == '@') {
+			break;
+		}
+		i++;
+	}
+	return rtsp + i + 1;
+}
 
 extern int exitFlag;
 // 获取 rtsp流数据 并且保存为二进制文件，
@@ -496,7 +506,15 @@ int func(char *mRtsp) {
 	char buf[64] = { 0 };
 	sprintf(buf, "%llu", ifmt_ctx->start_time_realtime);
 	printf("string %s \n", buf);
+
 	int len = strlen(buf);
+	char * ip = getIp(mRtsp);
+	buf[len++] = '_';
+	while (*ip != ':') {
+		buf[len++] = *ip;
+		ip++;
+	}
+	
 	buf[len] = '.';
 	buf[len + 1] = '2';
 	buf[len + 2] = '6';
@@ -504,6 +522,7 @@ int func(char *mRtsp) {
 
 	int frameNo = 0;
 
+	printf("name is %s \n", buf);
 	FILE * fd = fopen(buf, "wb");
 
 	while (1) {
