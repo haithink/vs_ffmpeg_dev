@@ -37,6 +37,7 @@
 
 #include <inttypes.h>
 
+
 #pragma comment(lib,"avcodec.lib")
 #pragma comment(lib,"avdevice.lib")
 #pragma comment(lib,"avfilter.lib")
@@ -395,6 +396,8 @@ end:
 }
 
 
+
+extern int exitFlag;
 // 获取 rtsp流数据 并且保存为二进制文件，
 // 需要两个线程， 各自保存各自的数据，怎么控制程序结束呢？getchar?
 int func(char *mRtsp) {
@@ -512,7 +515,11 @@ int func(char *mRtsp) {
 		frameNo++;
 		av_free_packet(&pkt);
 
-		if (frameNo >= 200) {
+		if (frameNo % 200 == 0) {			
+			fflush(fd);
+		}
+		if (exitFlag) {
+			printf("detect term flag\n");
 			fclose(fd);
 			break;
 		}
