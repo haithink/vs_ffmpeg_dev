@@ -1,8 +1,39 @@
 #include <iostream>
 #include <thread>
+#include <windows.h>
+#include <stdlib.h>
 
 extern "C" {
 	int func(char *mRtsp);
+	int exitFlag = 0; // 还必须放在这里面
+}
+
+BOOL WINAPI  ctrlhandler(DWORD fdwctrltype)
+{
+	switch (fdwctrltype)
+	{
+		// handle the ctrl-c signal.
+	case CTRL_C_EVENT:
+		exitFlag = 1;
+		printf("ctrl-c event\n\n");
+		return (TRUE);
+		// ctrl-close: confirm that the user wants to exit.
+		//case CTRL_CLOSE_EVENT:
+		//	printf("ctrl-close event\n\n");
+		//	return(true);
+		//	// pass other signals to the next handler.
+		//case CTRL_BREAK_EVENT:
+		//	printf("ctrl-break event\n\n");
+		//	return false;
+		//case CTRL_LOGOFF_EVENT:
+		//	printf("ctrl-logoff event\n\n");
+		//	return false;
+		//case CTRL_SHUTDOWN_EVENT:
+		//	printf("ctrl-shutdown event\n\n");
+		//	return false;
+	default:
+		return false;
+	}
 }
 
 int getRtspAddress(char * configFile, char * rtsp1, char * rtsp2, int bufSize) {
@@ -34,7 +65,15 @@ int getRtspAddress(char * configFile, char * rtsp1, char * rtsp2, int bufSize) {
 }
 
 
+
 int main() {
+	if (SetConsoleCtrlHandler(ctrlhandler, TRUE))
+	{
+		printf("\nThe Control Handler is installed.\n");
+	}
+	else {
+		printf("\nThe Control Handler install failed.\n");
+	}
 	char rtsp1[1024];
 	char rtsp2[1024];
 	if (getRtspAddress("rtspAddr.config", rtsp1, rtsp2, 1024) != 0) {
