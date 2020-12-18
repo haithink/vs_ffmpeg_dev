@@ -65,8 +65,13 @@ int getRtspAddress(char * configFile, char * rtsp1, char * rtsp2, int bufSize) {
 }
 
 
+int parseFile(char * datFileName);
 
 int main() {
+
+	parseFile("1608259657293000_192.168.2.187.dat");
+	return 0;
+
 	if (SetConsoleCtrlHandler(ctrlhandler, TRUE))
 	{
 		printf("\nThe Control Handler is installed.\n");
@@ -90,4 +95,29 @@ int main() {
 	t2.join();
 
 	return 0;
+}
+
+int parseFile(char * datFileName) {
+	FILE * fd = fopen(datFileName, "rb");
+
+	if (fd == NULL) {
+		printf("open data faild\n");
+		return -1;
+	}
+	while (1) {
+		int64_t ts = 0;
+		int32_t dataSize = 0;
+		int res = fread(&ts, 8, 1, fd);
+		if (res == 0) {
+			break;
+		}
+		res = fread(&dataSize, 4, 1, fd);
+		printf("ts %llu \n", ts);
+		printf("size %d\n", dataSize);
+		if (res == 0) {
+			break;
+		}
+	}
+
+	fclose(fd);
 }

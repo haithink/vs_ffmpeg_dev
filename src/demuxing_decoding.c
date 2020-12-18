@@ -107,10 +107,10 @@ static int decode_packet(int *got_frame, int cached)
                 return -1;
             }
 
-            //printf("video_frame%s n:%d coded_n:%d pts:%s\n",
-            //       cached ? "(cached)" : "",
-            //       video_frame_count++, frame->coded_picture_number,
-            //       av_ts2timestr(frame->pts, &video_dec_ctx->time_base));
+			printf("video_frame%s n:%d coded_n:%d pts:%s\n",
+				cached ? "(cached)" : "",
+				video_frame_count++, frame->coded_picture_number,
+				av_ts2timestr(frame->pts, &video_dec_ctx->time_base));
 
             /* copy decoded frame to destination buffer:
              * this is required since rawvideo expects non aligned data */
@@ -230,7 +230,7 @@ static int get_format_from_sample_fmt(const char **fmt,
     return -1;
 }
 
-int main_src (int argc, char **argv)
+int main_src(int argc, char **argv)
 {
     int ret = 0, got_frame;
 
@@ -501,6 +501,8 @@ int func(char *mRtsp) {
 	av_init_packet(&pkt);
 
 	double timebase = av_q2d(ifmt_ctx->streams[video_st_index]->time_base);
+	printf("timebase %f\n", timebase);
+
 	//printf("start time %" PRId64 "\n", ifmt_ctx->start_time_realtime);
 	printf("start time %llu \n", ifmt_ctx->start_time_realtime);
 
@@ -510,12 +512,24 @@ int func(char *mRtsp) {
 
 	int len = strlen(buf);
 	char * ip = getIp(mRtsp);
-	buf[len++] = '_';
-	while (*ip != ':') {
-		buf[len++] = *ip;
-		ip++;
+
+	if (*ip != '\0') {
+		buf[len++] = '_';
+		while (*ip != '\0' && *ip != ':') {
+			buf[len++] = *ip;
+			ip++;
+		}
 	}
 	
+	char bufDataName[64] = { 0 };
+	for (int i = 0; i < len; i++) {
+		bufDataName[i] = buf[i];
+	}
+	bufDataName[len] = '.';
+	bufDataName[len+1] = 'd';
+	bufDataName[len+2] = 'a';
+	bufDataName[len+3] = 't';
+
 	buf[len] = '.';
 	buf[len + 1] = '2';
 	buf[len + 2] = '6';
@@ -526,6 +540,8 @@ int func(char *mRtsp) {
 	printf("name is %s \n", buf);
 	FILE * fd = fopen(buf, "wb");
 
+	FILE * fdDat = fopen(bufDataName, "wb");
+
 	while (1) {
 		int ret = av_read_frame(ifmt_ctx, &pkt);
 		printf("get a frame %d\n", frameNo);
@@ -533,14 +549,27 @@ int func(char *mRtsp) {
 
 		fwrite(pkt.data, 1, pkt.size, fd);
 		frameNo++;
-		av_free_packet(&pkt);
+
+		// 获取时间戳
+		int64_t ts = pkt.pts;
+		int32_t dataSize = pkt.size;
+
+		printf("ts %llu \n", ts);
+
+
+		fwrite(&ts, 1, 8, fdDat);
+		fwrite(&dataSize, 1, 4, fdDat);
+
+		av_free_packet(&pkt);		
 
 		if (frameNo % 200 == 0) {			
 			fflush(fd);
+			fflush(fdDat);
 		}
 		if (exitFlag) {
 			printf("detect term flag\n");
 			fclose(fd);
+			fclose(fdDat);
 			break;
 		}
 	}
